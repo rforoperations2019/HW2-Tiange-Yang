@@ -1,0 +1,107 @@
+---
+title: "Tiange hw 2"
+author: "Tiange Yang"
+date: "10/4/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+require(rgdal)
+require(leaflet)
+require(leaflet.extras)
+require(dplyr)
+require(readxl)
+require(stringr)
+```
+
+## By this assignment, I am going to show you the commute situation in HongKong. 
+## load data and get summary.hk.delivery is the data of post boxes and facilities. hk.house is public houses where people mainly live in .HK.C are roads and average speed. 
+```{r}
+hk.delivery <-  data.frame(read.csv("/Users/tiangeyang/Desktop/hw2/Street_Posting_Boxes_in_Hong_Kong.csv"))
+str(hk.delivery)
+levels(hk.delivery$District)
+hk.house<-data.frame(read.csv("/Users/tiangeyang/Desktop/hw2/Public_Housing_Estates_in_Hong_Kong.csv"))
+str(hk.house)
+hk.c<-readOGR('/Users/tiangeyang/Desktop/hw2/TD_SpeedMap.geojson.json')
+plot(hk.c)
+```
+
+
+##blank Map with Basemap
+```{r}
+leaflet() %>%
+  addProviderTiles(providers$OpenStreetMap.HOT)
+```
+## Map delivery facilities in each district by points
+```{r}
+pal.d <- colorFactor(topo.colors(18),c("CENTRAL AND WESTERN","EASTERN","ISLANDS DISTRICT","KOWLOON CITY","KWAI TSING", "KWUN TONG","NORTH","SAI KUNG","SHA TIN","SHAM SHUI PO" ,"SOUTHERN", "TAI PO","TSUEN WAN","TUEN MUN","WAN CHAI","WONG TAI SIN","YAU TSIM MONG","YUEN LONG"))
+#Map points
+leaflet() %>%
+  addProviderTiles("OpenStreetMap.DE") %>%
+  #add a layer of points
+  addCircleMarkers(data = hk.delivery, 
+                   lng = ~Longitude, 
+                   lat = ~Latitude , 
+                   radius = 1,
+                   color = ~pal.d(District),
+                  clusterOptions = markerClusterOptions()) %>%
+  #add legend
+  addLegend(position = "topright", 
+            pal = pal.d, 
+            values = hk.delivery$District, 
+            title = "HK District")
+```
+## Map main commute networks by polylines. 
+```{r}
+leaflet(data = hk.c) %>%
+  addProviderTiles("OpenStreetMap.DE") %>%
+  #add a layer of lines
+  addPolylines(color = "Brown")
+```
+## Map public houses catagorized by year and block. Uers can choose basemap and group.
+```{r}
+pal.h<-colorNumeric(palette = "Blues",domain = hk.house$Year_of_Intake_en)
+pal.hb<-colorNumeric(palette = "Reds",domain = hk.house$No__of_Blocks,3,na="white")
+#Map
+leaflet() %>%
+  addProviderTiles("OpenStreetMap.HOT", group = "osm.H") %>%
+  addProviderTiles("Esri.NatGeoWorldMap", group = "otm") %>%
+  addProviderTiles("Stamen.Toner", group = "s.t") %>%
+#add a layer of points
+  addCircleMarkers(data = hk.house, 
+                   lng = ~Longitude, 
+                   lat = ~Latitude, 
+                   fillOpacity = .8,
+                   radius = 1,
+                   color = ~pal.h(Year_of_Intake_en),
+                   group='House Year') %>%
+#add legend
+  addLegend(position = "topleft", 
+            pal = pal.h, 
+            values = hk.house$Year_of_Intake_en, 
+            title = "HK House Year",
+            group='House Year') %>%
+  
+#add a layer of points
+  addCircleMarkers(data = hk.house, 
+                   lng = ~Longitude, 
+                   lat = ~Latitude, 
+                   fillOpacity = .4,
+                   radius = 1,
+                   color = ~pal.h(No__of_Blocks),
+                   group='#Block') %>%
+#add legend
+  addLegend(position = "topleft", 
+            pal = pal.hb, 
+            values = hk.house$No__of_Blocks, 
+            title = "#Block",
+            group='#Block') %>%
+  
+#add layers control
+  addLayersControl(
+    baseGroups = c("snm.H", "otm", "s.t"),
+   overlayGroups = c("HK House Year", "#Block"),
+   options = layersControlOptions(collapsed = FALSE)
+  )
+
+```
